@@ -74,6 +74,7 @@ export default function Home() {
         />
         <Line type="monotone" dataKey="uv" stroke="#82ca9d" />
       </LineChart>
+      <div>Hee kuy tad</div>
     </ResponsiveContainer>
   );
 }
