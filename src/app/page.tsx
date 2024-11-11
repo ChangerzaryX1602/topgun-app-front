@@ -59,6 +59,7 @@ const data = [
 export default function Home() {
 
   return (
+    <div>
     <ResponsiveContainer width={"100%"} height={300}>
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
@@ -74,7 +75,9 @@ export default function Home() {
         />
         <Line type="monotone" dataKey="uv" stroke="#82ca9d" />
       </LineChart>
-      <div>Hee kuy tad</div>
+      
     </ResponsiveContainer>
+    <div>Hee kuy tad</div>
+    </div>
   );
 }
