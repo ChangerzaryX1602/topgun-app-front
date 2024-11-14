@@ -9,6 +9,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Brush,
 } from "recharts";
 
 const PressureChart: FC<{ data: Pressure[] }> = ({ data }) => {
@@ -48,7 +49,16 @@ const PressureChart: FC<{ data: Pressure[] }> = ({ data }) => {
             dataKey="Pressure"
             stroke="#8884d8"
           />
+                    {/* Brush Component for zoom */}
+                    <Brush
+            dataKey="Time"
+            height={30}
+            stroke="#8884d8"
+            startIndex={0}
+            endIndex={data.length - 1}
+          />
         </LineChart>
+        
       </ResponsiveContainer>
     </div>
   );

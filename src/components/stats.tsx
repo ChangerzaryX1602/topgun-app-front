@@ -23,7 +23,7 @@ const Stats:FC<Props> = ({ data }) => {
                 <CardTitle>{item.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>{item.value}</p>
+                <p>{item.value.toFixed(2)}</p>
               </CardContent>
             </div>
           );

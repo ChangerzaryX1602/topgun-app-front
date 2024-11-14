@@ -1,4 +1,4 @@
-import { Energy } from "@/models/data-chart";
+import { Punch } from "@/models/data-chart";
 import React, { FC, useState } from "react";
 import {
   LineChart,
@@ -12,7 +12,7 @@ import {
   Brush,
 } from "recharts";
 
-const EnergyChart: FC<{ data: Energy[] }> = ({ data }) => {
+const PunchChart: FC<{ data: Punch[] }> = ({ data }) => {
   const [visibility, setVisibility] = useState(false);
 
   const handleLegendClick = () => {
@@ -46,7 +46,7 @@ const EnergyChart: FC<{ data: Energy[] }> = ({ data }) => {
           <Line
             type="monotone"
             hide={visibility}
-            dataKey="Power"
+            dataKey="Punch"
             stroke="#8884d8"
           />
                     {/* Brush Component for zoom */}
@@ -64,4 +64,4 @@ const EnergyChart: FC<{ data: Energy[] }> = ({ data }) => {
   );
 };
 
-export default EnergyChart;
+export default PunchChart;

@@ -23,3 +23,15 @@ export interface Pressure {
   Pressure: number;
   Time: string;
 }
+export interface SendData {
+  Topic: string;
+  Payload: string;
+}
+export interface Punch {
+  Punch: string;
+  Time: string;
+}
+export interface Position{
+  Position: string;
+  Time:string;
+}
