@@ -1,15 +1,16 @@
-// ใช้ Tailwind CSS เพื่อทำให้หน้าเว็บมีความทันสมัยและสวยงาม
+// Modernized UI using Tailwind CSS for a sleek and clean look
 "use client";
-import PiButton from "@/components/button";
+import React, { useRef, useEffect, useState } from "react";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import EnergyChart from "@/components/energy-chart";
 import PressureChart from "@/components/pressure-chart";
 import PunchChart from "@/components/punch-chart";
-// import Stats from "@/components/stats";
 import PositionChart from "@/components/position-chart";
-// import Topbar from "@/components/topbar";
-import { Energy, Pressure, Punch,Position } from "@/models/data-chart";
-import React, { useRef, useEffect, useState } from "react";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import Sidebar from "@/components/sidebar";
+import Topbar from "@/components/topbar";
+import { Energy, Pressure, Punch, Position } from "@/models/data-chart";
+import RealTimePlot from "@/components/real-time-plot";
+import NFPlot from "@/components/nf-plot";
 
 export default function Home() {
   const ws = useRef<WebSocket | null>(null);
@@ -17,7 +18,7 @@ export default function Home() {
   const [energyData, setEnergyData] = useState<Energy[]>([]);
   const [pressureData, setPressureData] = useState<Pressure[]>([]);
   const [punchData, setPunchData] = useState<Punch[]>([]);
-  const [positionData,setPositionData] = useState<Position[]>([]);
+  const [positionData, setPositionData] = useState<Position[]>([]);
   const [force, setForce] = useState<number>(0);
   const [cycleCount, setCycleCount] = useState<number>(0);
   const [position, setPosition] = useState<number>(0);
@@ -32,6 +33,9 @@ export default function Home() {
   const [showPunchChart, setShowPunchChart] = useState<boolean>(true);
   const [showSidebar, setShowSidebar] = useState<boolean>(true);
 
+  const [showOnlyRT, setShowOnlyRT] = useState<boolean>(false);
+  const [realtimeData, setRealtimeData] = useState<number[]>([]);
+
   const statsData = [
     { title: "Force", value: force },
     { title: "Cycle Count", value: cycleCount },
@@ -42,6 +46,16 @@ export default function Home() {
     { title: "Voltage L2-GND", value: voltage[1] },
     { title: "Voltage L3-GND", value: voltage[2] },
   ];
+
+  const bufferSize = 2048;
+  const sampleRate = 48000;
+
+  // ข้อมูลตัวอย่างของบัฟเฟอร์
+  const buffer: number[] = Array.from(
+    { length: bufferSize },
+    () => Math.random() * 100
+  );
+
   const piData = {
     Topic: topic,
     Payload: payload,
@@ -61,16 +75,7 @@ export default function Home() {
       return;
     }
 
-    setEnergyData([]);
-    setPressureData([]);
-    setPunchData([]);
-    setPositionData([]);
-    setForce(0);
-    setCycleCount(0);
-    setPosition(0);
-    setEnergy(0);
-    setVoltage([0, 0, 0]);
-    setPressure(0);
+    resetData();
 
     const apiKey = "1990947672a3dab4da6d5f3e5f15b1ef";
     ws.current = new WebSocket("ws://technest.ddns.net:8001/ws");
@@ -83,69 +88,22 @@ export default function Home() {
 
     ws.current.onmessage = (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data);
-        const current = new Date().toLocaleString("en-US", {
-          timeZone: "Asia/Bangkok",
-          hour: "numeric",
-          minute: "numeric",
-          second: "numeric",
-          fractionalSecondDigits: 2,
-        });
+        if (typeof event.data === "string" && event.data.trim().length > 0) {
+          const data = JSON.parse(event.data);
+          const currentTime = new Date().toLocaleString("en-US", {
+            timeZone: "Asia/Bangkok",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+            fractionalSecondDigits: 2,
+          });
 
-        setEnergyData((prevData) => {
-          if (prevData.length >= 200) {
-            return [{ Power: data["Energy Consumption"].Power, Time: current }];
-          } else {
-            return [
-              ...prevData,
-              { Power: data["Energy Consumption"].Power, Time: current },
-            ];
-          }
-        });
-
-        setPositionData((prevData) => {
-          if (prevData.length >= 200) {
-            return [
-              {
-                Position:data["Position of the Punch"],
-                Time: current,
-              },
-            ];
-          } else {
-            return [
-              ...prevData,
-              {
-                Position:data["Position of the Punch"],
-                Time: current,
-              },
-            ];
-          }
-        });
-
-        setPressureData((prevData) => {
-          if (prevData.length >= 200) {
-            return [{ Pressure: data.Pressure, Time: current }];
-          } else {
-            return [...prevData, { Pressure: data.Pressure, Time: current }];
-          }
-        });
-
-        setPunchData((prevData) => {
-          if (prevData.length >= 200) {
-            return [{ Punch: data.Force, Time: current }];
-          } else {
-            return [...prevData, { Punch: data.Force, Time: current }];
-          }
-        });
-
-        setForce(data.Force);
-        setCycleCount(data["Cycle Count"]);
-        setPosition(data["Position of the Punch"]);
-        setEnergy(data["Energy Consumption"].Power);
-        setVoltage([data.Voltage["L1-GND"], data.Voltage["L2-GND"], data.Voltage["L3-GND"]]);
-        setPressure(data.Pressure);
+          updateChartData(data, currentTime);
+        } else {
+          console.warn("Received empty message");
+        }
       } catch (error) {
-        console.log("not a json lol", error);
+        console.warn("Received data is not a valid JSON: ", event.data, error);
       }
     };
 
@@ -153,6 +111,61 @@ export default function Home() {
       setIsConnected(false);
       console.log("WebSocket connection closed");
     };
+  };
+
+  const resetData = () => {
+    setEnergyData([]);
+    setPressureData([]);
+    setPunchData([]);
+    setPositionData([]);
+    setForce(0);
+    setCycleCount(0);
+    setPosition(0);
+    setEnergy(0);
+    setVoltage([0, 0, 0]);
+    setPressure(0);
+  };
+
+  const updateChartData = (data: any, currentTime: string) => {
+    setEnergyData((prevData) =>
+      updateChartDataHelper(prevData, {
+        Power: data["Energy Consumption"].Power,
+        Time: currentTime,
+      })
+    );
+    setPositionData((prevData) =>
+      updateChartDataHelper(prevData, {
+        Position: data["Position of the Punch"],
+        Time: currentTime,
+      })
+    );
+    setPressureData((prevData) =>
+      updateChartDataHelper(prevData, {
+        Pressure: data.Pressure,
+        Time: currentTime,
+      })
+    );
+    setPunchData((prevData) =>
+      updateChartDataHelper(prevData, { Punch: data.Force, Time: currentTime })
+    );
+
+    setForce(data.Force);
+    setCycleCount(data["Cycle Count"]);
+    setPosition(data["Position of the Punch"]);
+    setEnergy(data["Energy Consumption"].Power);
+    setVoltage([
+      data.Voltage["L1-GND"],
+      data.Voltage["L2-GND"],
+      data.Voltage["L3-GND"],
+    ]);
+    setPressure(data.Pressure);
+  };
+
+  const updateChartDataHelper = (prevData: any[], newData: any) => {
+    if (prevData.length >= 200) {
+      return [newData];
+    }
+    return [...prevData, newData];
   };
 
   const disconnectWebSocket = () => {
@@ -164,180 +177,134 @@ export default function Home() {
   };
 
   const toggleWebSocket = () => {
-    if (isConnected) {
-      disconnectWebSocket();
-    } else {
-      connectWebSocket();
-    }
+    isConnected ? disconnectWebSocket() : connectWebSocket();
   };
 
+  const handleData = (data: any) => {
+    const energyData: Energy[] = data.data.map((item: any) => ({
+      Power: item["Energy Consumption"].Power,
+      Time: new Date(item.created_at).toISOString(),
+    }));
+
+    const pressureData: Pressure[] = data.data.map((item: any) => ({
+      Pressure: item.Pressure,
+      Time: new Date(item.created_at).toISOString(),
+    }));
+
+    const punchData: Punch[] = data.data.map((item: any) => ({
+      Punch: item.Force.toString(),
+      Time: new Date(item.created_at).toISOString(),
+    }));
+
+    const positionData: Position[] = data.data.map((item: any) => ({
+      Position: item["Position of the Punch"].toString(),
+      Time: new Date(item.created_at).toISOString(),
+    }));
+
+    setPositionData(positionData);
+    setEnergyData(energyData);
+    setPressureData(pressureData);
+    setPunchData(punchData);
+  };
+
+  const handleRealtime = (data: number[]) => {
+    console.log("page", data);
+    setRealtimeData(data);
+  };
+
+  const triggerSwitchMode = () => {
+    setShowOnlyRT((prev) => !prev);
+  };
   return (
-    <div className="w-full h-screen flex flex-col items-center bg-gray-300 p-4 overflow-hidden">
-      <Topbar statsData={statsData} />
-      <div className="w-full h-full flex">
-        {showSidebar && (
-          <Sidebar
-            showEnergyChart={showEnergyChart}
-            setShowEnergyChart={setShowEnergyChart}
-            showPositionChart={showPositionChart}
-            setShowPositionChart={setShowPositionChart}
-            showPressureChart={showPressureChart}
-            setShowPressureChart={setShowPressureChart}
-            showPunchChart={showPunchChart}
-            setShowPunchChart={setShowPunchChart}
-            topic={topic}
-            setTopic={setTopic}
-            payload={payload}
-            setPayload={setPayload}
-            piData={piData}
-            toggleWebSocket={toggleWebSocket}
-            isConnected={isConnected}
-          />
-        )}
-        <button
-          onClick={() => setShowSidebar(!showSidebar)}
-          className="m-2 bg-gray-400 text-white rounded-lg shadow-md hover:bg-gray-800 transition duration-300"
-        >
-          {showSidebar ? <FiChevronLeft size={24} /> : <FiChevronRight size={24}/>}
-        </button>
-        <div className={`w-full ${showSidebar ? "md:w-4/5" : "w-full"} h-full overflow-hidden grid grid-cols-1 grid-rows-4`}>
+    <div className="w-full h-screen flex flex-col bg-gray-300">
+  <div className="w-full p-4">
+    <Topbar statsData={statsData} />
+  </div>
+  <div className="flex w-full h-full overflow-hidden">
+    {showSidebar && (
+      <Sidebar
+        showEnergyChart={showEnergyChart}
+        setShowEnergyChart={setShowEnergyChart}
+        showPositionChart={showPositionChart}
+        setShowPositionChart={setShowPositionChart}
+        showPressureChart={showPressureChart}
+        setShowPressureChart={setShowPressureChart}
+        showPunchChart={showPunchChart}
+        setShowPunchChart={setShowPunchChart}
+        topic={topic}
+        setTopic={setTopic}
+        payload={payload}
+        setPayload={setPayload}
+        piData={piData}
+        toggleWebSocket={toggleWebSocket}
+        isConnected={isConnected}
+        handleData={handleData}
+        handleRealtime={handleRealtime}
+        triggerSwitchMode={triggerSwitchMode}
+      />
+    )}
+    <div
+      className={`w-full ${
+        showSidebar ? "md:w-4/5" : "w-full"
+      } flex-grow overflow-y-auto flex flex-col p-4`}
+    >
+      {/* grid grid-cols-1 auto-rows-fr gap-6 p-4 */}
+      {!showOnlyRT ? (
+        <>
           {showEnergyChart && (
-            <div className="bg-white shadow-lg rounded-none p-0 h-full w-full row-span-2">
-              <div className="flex justify-center font-bold text-xl text-indigo-700">
-                Energy Consumption
-              </div>
+            <ChartContainer title="Energy Consumption">
               <EnergyChart data={energyData} />
-            </div>
+            </ChartContainer>
           )}
           {showPositionChart && (
-            <div className="bg-white shadow-lg rounded-none p-0 h-full w-full row-span-2">
-              <div className="flex justify-center font-bold text-xl text-indigo-700">Position</div>
+            <ChartContainer title="Position">
               <PositionChart data={positionData} />
-            </div>
+            </ChartContainer>
           )}
           {showPressureChart && (
-            <div className="bg-white shadow-lg rounded-none p-0 h-full w-full row-span-2">
-              <div className="flex justify-center font-bold text-xl text-indigo-700">Pressure</div>
+            <ChartContainer title="Pressure">
               <PressureChart data={pressureData} />
-            </div>
+            </ChartContainer>
           )}
           {showPunchChart && (
-            <div className="bg-white shadow-lg rounded-none p-0 h-full w-full row-span-2">
-              <div className="flex justify-center font-bold text-xl text-indigo-700">Punch</div>
+            <ChartContainer title="Punch">
               <PunchChart data={punchData} />
-            </div>
+            </ChartContainer>
           )}
+        </>
+      ) : (
+        <div className="w-full h-screen flex flex-col bg-white p-4">
+          <ChartContainer title="Real-time Plot">
+          <RealTimePlot
+            buffer={realtimeData}
+            sampleRate={sampleRate}
+            bufferSize={bufferSize}
+          />
+          </ChartContainer>
+
+          <ChartContainer title="N-F">
+          <NFPlot />
+          </ChartContainer>
         </div>
-      </div>
+      )}
     </div>
-  );
+  </div>
+</div>
 
-
-}
-
-function Sidebar({
-  showEnergyChart,
-  setShowEnergyChart,
-  showPositionChart,
-  setShowPositionChart,
-  showPressureChart,
-  setShowPressureChart,
-  showPunchChart,
-  setShowPunchChart,
-  topic,
-  setTopic,
-  payload,
-  setPayload,
-  piData,
-  toggleWebSocket,
-  isConnected,
-}: {
-  showEnergyChart: boolean;
-  setShowEnergyChart: React.Dispatch<React.SetStateAction<boolean>>;
-  showPositionChart: boolean;
-  setShowPositionChart: React.Dispatch<React.SetStateAction<boolean>>;
-  showPressureChart: boolean;
-  setShowPressureChart: React.Dispatch<React.SetStateAction<boolean>>;
-  showPunchChart: boolean;
-  setShowPunchChart: React.Dispatch<React.SetStateAction<boolean>>;
-  topic: string;
-  setTopic: React.Dispatch<React.SetStateAction<string>>;
-  payload: string;
-  setPayload: React.Dispatch<React.SetStateAction<string>>;
-  piData: { Topic: string; Payload: string };
-  toggleWebSocket: () => void;
-  isConnected: boolean;
-}) {
-  return (
-    <div className="flex flex-col justify-start gap-4 mt-4 h-auto w-1/6 bg-gray-100 p-6 rounded-lg shadow-md">
-      <button
-        onClick={() => setShowEnergyChart((prev) => !prev)}
-        className={`p-2 m-2 ${!showEnergyChart ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white rounded-lg shadow-md  transition duration-300`}
-      >
-        {(!showEnergyChart) ? (<>Show energy chart</>) : (<>Hide energy chart</>)}
-        
-      </button>
-      <button
-        onClick={() => setShowPositionChart((prev) => !prev)}
-        className={`p-2 m-2 ${!showPositionChart ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white rounded-lg shadow-md hover:bg-indigo-600 transition duration-300`}
-      >
-        {(!showPositionChart) ? (<>Show position chart</>) : (<>Hide position chart</>)}
-      </button>
-      <button
-        onClick={() => setShowPressureChart((prev) => !prev)}
-        className={`p-2 m-2 ${!showPressureChart ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white rounded-lg shadow-md hover:bg-indigo-600 transition duration-300`}
-      >
-        {(!showPressureChart) ? (<>Show pressure chart</>) : (<>Hide pressure chart</>)}
-      </button>
-      <button
-        onClick={() => setShowPunchChart((prev) => !prev)}
-        className={`p-2 m-2 ${!showPunchChart ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white rounded-lg shadow-md hover:bg-indigo-600 transition duration-300`}
-      >
-        {(!showPunchChart) ? (<>Show punch chart</>) : (<>Hide punch chart</>)}
-      </button>
-      <input
-        type="text"
-        placeholder="Topic"
-        value={topic}
-        onChange={(e) => setTopic(e.target.value)}
-        className="p-3 border rounded-lg w-full"
-      />
-      <input
-        type="text"
-        placeholder="Payload"
-        value={payload}
-        onChange={(e) => setPayload(e.target.value)}
-        className="p-3 border rounded-lg w-full"
-      />
-      <PiButton data={piData} />
-      <button
-        onClick={toggleWebSocket}
-        className={`mt-4 p-4 rounded-lg font-semibold transition duration-300 ease-in-out transform hover:scale-105 w-full text-white ${
-          isConnected ? "bg-red-600" : "bg-green-600"
-        }`}
-      >
-        {isConnected ? "Disconnect WebSocket" : "Connect WebSocket"}
-      </button>
-      
-    </div>
   );
 }
 
-// Topbar Component
-function Topbar({ statsData }: { statsData: { title: string; value: number }[] }) {
-  return (
-    <div className="w-full bg-white shadow-lg rounded-lg p-6 mb-4">
-      <div className="flex justify-center font-bold text-xl text-center text-indigo-700 mb-4">
-        Live Data from WebSocket
-      </div>
-      <div className="flex flex-wrap justify-around items-center gap-2">
-        {statsData.map((stat, index) => (
-          <div key={index} className="flex flex-col items-center">
-            <span className="font-semibold text-gray-700">{stat.title}</span>
-            <span className="text-gray-500">{stat.value.toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+interface ChartContainerProps {
+  title: string;
+  children: React.ReactNode;
 }
+
+const ChartContainer: React.FC<ChartContainerProps> = ({ title, children }) => (
+  <div className="bg-white shadow-lg rounded-md p-4 h-[350px] w-full flex flex-col">
+    <div className="flex justify-center font-bold text-xl text-indigo-700 mb-4">
+      {title}
+    </div>
+    <div className="flex-1 w-full">{children}</div>
+  </div>
+);
+

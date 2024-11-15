@@ -20,8 +20,8 @@ const PressureChart: FC<{ data: Pressure[] }> = ({ data }) => {
   };
 
   return (
-    <div className="w-full h-64">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="w-full h-[500px]">
+      <ResponsiveContainer width="100%" height="50%">
         <LineChart
           width={500}
           height={300}

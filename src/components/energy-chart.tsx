@@ -20,8 +20,8 @@ const EnergyChart: FC<{ data: Energy[] }> = ({ data }) => {
   };
 
   return (
-    <div className="w-full h-64">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="w-full h-[500px]">
+      <ResponsiveContainer width="100%" height="50%">
         <LineChart
           width={500}
           height={300}
@@ -50,7 +50,7 @@ const EnergyChart: FC<{ data: Energy[] }> = ({ data }) => {
             stroke="#8884d8"
           />
                     {/* Brush Component for zoom */}
-                    <Brush
+            <Brush
             dataKey="Time"
             height={30}
             stroke="#8884d8"

@@ -1,6 +1,7 @@
 import React, { FC, useRef, useEffect } from 'react';
 import mqtt from 'mqtt';
 import { SendData } from '@/models/data-chart';
+import Swal from 'sweetalert2';
 
 const PiButton: FC<{ data: SendData }> = ({ data }) => {
     const mqttClient = useRef<mqtt.MqttClient | null>(null);
@@ -43,6 +44,12 @@ const PiButton: FC<{ data: SendData }> = ({ data }) => {
                 console.error('Failed to publish message:', error);
             } else {
                 console.log(`Message sent to ${topic}: ${message}`);
+                Swal.fire({
+                    title: `Message sent to ${topic}: ${message}`,
+                    icon: 'success',
+                    showConfirmButton: true,
+                    timer: 3000,
+                  });
             }
         });
     };
